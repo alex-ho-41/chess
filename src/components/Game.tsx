@@ -72,11 +72,7 @@ export default function Game() {
 
         // AI Move Logic
         if (gameMode === 'ai' && !game.isGameOver() && game.turn() === aiColor && !isAiThinking) {
-            // Small delay to make it feel natural and allow UI to update
-            const timer = setTimeout(() => {
-                makeAiMove()
-            }, 500)
-            return () => clearTimeout(timer)
+            makeAiMove()
         }
     }, [game, fen, gameMode, aiColor, isAiThinking])
 
@@ -139,20 +135,23 @@ export default function Game() {
             }
         } catch (e) {
             return false
-            setPromotionMove(null)
         }
         return false
     }, [game, gameMode, aiColor, whiteTime, blackTime, isTimerActive])
 
     function makeAiMove() {
+        console.log("makeAiMove started")
         setIsAiThinking(true)
         // Use setTimeout to allow UI to render "thinking" state
         setTimeout(() => {
             try {
                 // Clone the game to avoid mutating the state object directly during calculation
                 // and to prevent any corruption if calculation fails
+                console.log("Cloning game for AI calculation")
                 const gameCopy = new Chess(game.fen())
+                console.log("Calling getBestMove")
                 const bestMove = getBestMove(gameCopy)
+                console.log("Best move found:", bestMove)
 
                 if (bestMove) {
                     const result = game.move(bestMove)
