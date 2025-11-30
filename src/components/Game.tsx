@@ -30,9 +30,8 @@ export default function Game() {
     const [showNewGameDialog, setShowNewGameDialog] = useState(false)
     const [isAiThinking, setIsAiThinking] = useState(false)
 
-    // Timer Logic
     useEffect(() => {
-        let interval: NodeJS.Timeout | null = null
+        let interval: ReturnType<typeof setInterval> | null = null
 
         if (isTimerActive && !game.isGameOver()) {
             interval = setInterval(() => {

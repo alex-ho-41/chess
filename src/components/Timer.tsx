@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+
 
 interface TimerProps {
     whiteTime: number
