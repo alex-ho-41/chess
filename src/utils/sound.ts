@@ -1,6 +1,7 @@
-const moveAudio = new Audio('/sounds/move.mp3')
-const captureAudio = new Audio('/sounds/capture.mp3')
-const checkAudio = new Audio('/sounds/notify.mp3')
+const baseUrl = import.meta.env.BASE_URL
+const moveAudio = new Audio(`${baseUrl}sounds/move.mp3`)
+const captureAudio = new Audio(`${baseUrl}sounds/capture.mp3`)
+const checkAudio = new Audio(`${baseUrl}sounds/notify.mp3`)
 
 // Preload sounds
 moveAudio.load()
