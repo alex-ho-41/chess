@@ -139,17 +139,22 @@ export default function Game() {
             }
         } catch (e) {
             return false
+            setPromotionMove(null)
         }
         return false
     }, [game, gameMode, aiColor, whiteTime, blackTime, isTimerActive])
 
     function makeAiMove() {
         setIsAiThinking(true)
-        // Use setTimeout to allow UI to render "thinking" state if we wanted to show it
+        // Use setTimeout to allow UI to render "thinking" state
         setTimeout(() => {
-            const bestMove = getBestMove(game)
-            if (bestMove) {
-                try {
+            try {
+                // Clone the game to avoid mutating the state object directly during calculation
+                // and to prevent any corruption if calculation fails
+                const gameCopy = new Chess(game.fen())
+                const bestMove = getBestMove(gameCopy)
+
+                if (bestMove) {
                     const result = game.move(bestMove)
                     if (result) {
                         setFen(game.fen())
@@ -163,11 +168,12 @@ export default function Game() {
                             playMoveSound()
                         }
                     }
-                } catch (e) {
-                    console.error("AI Move Error", e)
                 }
+            } catch (e) {
+                console.error("AI Move Error", e)
+            } finally {
+                setIsAiThinking(false)
             }
-            setIsAiThinking(false)
         }, 100)
     }
 
