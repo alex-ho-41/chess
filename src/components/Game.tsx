@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Chess } from 'chess.js'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -6,7 +6,12 @@ import Board from './Board'
 import MoveHistory from './MoveHistory'
 import PromotionDialog from './PromotionDialog'
 import CustomDragLayer from './CustomDragLayer'
+import GameOptionsDialog from './GameOptionsDialog'
+import Timer from './Timer'
 import { playMoveSound, playCaptureSound, playCheckSound } from '../utils/sound'
+import { getBestMove } from '../utils/ai'
+
+const INITIAL_TIME = 600 // 10 minutes in seconds
 
 export default function Game() {
     const [game, setGame] = useState(new Chess())
@@ -14,13 +19,75 @@ export default function Game() {
     const [status, setStatus] = useState('')
     const [promotionMove, setPromotionMove] = useState<{ from: string; to: string } | null>(null)
 
+    // Timer State
+    const [whiteTime, setWhiteTime] = useState(INITIAL_TIME)
+    const [blackTime, setBlackTime] = useState(INITIAL_TIME)
+    const [isTimerActive, setIsTimerActive] = useState(false)
+
+    // AI State
+    const [gameMode, setGameMode] = useState<'pvp' | 'ai'>('pvp')
+    const [aiColor, setAiColor] = useState<'w' | 'b' | null>(null)
+    const [showNewGameDialog, setShowNewGameDialog] = useState(false)
+    const [isAiThinking, setIsAiThinking] = useState(false)
+
+    // Timer Logic
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null
+
+        if (isTimerActive && !game.isGameOver()) {
+            interval = setInterval(() => {
+                if (game.turn() === 'w') {
+                    setWhiteTime(t => {
+                        if (t <= 0) {
+                            setIsTimerActive(false)
+                            return 0
+                        }
+                        return t - 1
+                    })
+                } else {
+                    setBlackTime(t => {
+                        if (t <= 0) {
+                            setIsTimerActive(false)
+                            return 0
+                        }
+                        return t - 1
+                    })
+                }
+            }, 1000)
+        }
+
+        return () => {
+            if (interval) clearInterval(interval)
+        }
+    }, [isTimerActive, game.turn(), game])
+
+    // Check for timeout
+    useEffect(() => {
+        if (whiteTime === 0 || blackTime === 0) {
+            setIsTimerActive(false)
+        }
+    }, [whiteTime, blackTime])
+
     useEffect(() => {
         updateStatus()
-    }, [game, fen])
+
+        // AI Move Logic
+        if (gameMode === 'ai' && !game.isGameOver() && game.turn() === aiColor && !isAiThinking) {
+            // Small delay to make it feel natural and allow UI to update
+            const timer = setTimeout(() => {
+                makeAiMove()
+            }, 500)
+            return () => clearTimeout(timer)
+        }
+    }, [game, fen, gameMode, aiColor, isAiThinking])
 
     function updateStatus() {
         let status = ''
-        if (game.isCheckmate()) {
+        if (whiteTime === 0) {
+            status = 'Time out! Black wins.'
+        } else if (blackTime === 0) {
+            status = 'Time out! White wins.'
+        } else if (game.isCheckmate()) {
             status = `Checkmate! ${game.turn() === 'w' ? 'Black' : 'White'} wins.`
         } else if (game.isDraw()) {
             status = 'Draw!'
@@ -33,7 +100,15 @@ export default function Game() {
         setStatus(status)
     }
 
-    function makeMove(move: { from: string; to: string; promotion?: string }) {
+    const makeMove = useCallback((move: { from: string; to: string; promotion?: string }) => {
+        // Prevent player from moving AI's pieces
+        if (gameMode === 'ai' && game.turn() === aiColor) {
+            return false
+        }
+
+        // Check if game is over due to time
+        if (whiteTime === 0 || blackTime === 0) return false
+
         // Check if this move requires promotion
         const possibleMoves = game.moves({ verbose: true })
         const isPromotion = possibleMoves.some(m =>
@@ -51,6 +126,7 @@ export default function Game() {
             const result = game.move(move)
             if (result) {
                 setFen(game.fen())
+                if (!isTimerActive) setIsTimerActive(true)
 
                 if (game.isCheck()) {
                     playCheckSound()
@@ -66,6 +142,34 @@ export default function Game() {
             return false
         }
         return false
+    }, [game, gameMode, aiColor, whiteTime, blackTime, isTimerActive])
+
+    function makeAiMove() {
+        setIsAiThinking(true)
+        // Use setTimeout to allow UI to render "thinking" state if we wanted to show it
+        setTimeout(() => {
+            const bestMove = getBestMove(game)
+            if (bestMove) {
+                try {
+                    const result = game.move(bestMove)
+                    if (result) {
+                        setFen(game.fen())
+                        if (!isTimerActive) setIsTimerActive(true)
+
+                        if (game.isCheck()) {
+                            playCheckSound()
+                        } else if (result.captured) {
+                            playCaptureSound()
+                        } else {
+                            playMoveSound()
+                        }
+                    }
+                } catch (e) {
+                    console.error("AI Move Error", e)
+                }
+            }
+            setIsAiThinking(false)
+        }, 100)
     }
 
     function handlePromotion(piece: string) {
@@ -75,12 +179,23 @@ export default function Game() {
         }
     }
 
-    function resetGame() {
+    function startNewGame(mode: 'pvp' | 'ai', aiCol?: 'w' | 'b') {
         const newGame = new Chess()
         setGame(newGame)
         setFen(newGame.fen())
         setPromotionMove(null)
+        setGameMode(mode)
+        setAiColor(aiCol || null)
+        setWhiteTime(INITIAL_TIME)
+        setBlackTime(INITIAL_TIME)
+        setIsTimerActive(false)
+        setShowNewGameDialog(false)
+        setIsAiThinking(false)
     }
+
+    // Determine if board should be flipped
+    // Flip if user is playing Black (AI is White)
+    const isFlipped = gameMode === 'ai' && aiColor === 'w'
 
     return (
         <DndProvider backend={HTML5Backend}>
@@ -91,22 +206,31 @@ export default function Game() {
                         {status}
                     </div>
 
-                    <Board game={game} onMove={makeMove} />
+                    <Board game={game} onMove={makeMove} isFlipped={isFlipped} />
 
                     <button
-                        onClick={resetGame}
+                        onClick={() => setShowNewGameDialog(true)}
                         className="px-6 py-2 bg-stone-700 hover:bg-stone-600 text-stone-200 rounded-lg transition-colors font-medium shadow-md"
                     >
                         New Game
                     </button>
                 </div>
 
-                <MoveHistory history={game.history({ verbose: true })} />
+                <div className="flex flex-col gap-6 w-64">
+                    <Timer whiteTime={whiteTime} blackTime={blackTime} turn={game.turn()} />
+                    <MoveHistory history={game.history({ verbose: true })} />
+                </div>
 
                 <PromotionDialog
                     isOpen={!!promotionMove}
                     color={game.turn()}
                     onSelect={handlePromotion}
+                />
+
+                <GameOptionsDialog
+                    isOpen={showNewGameDialog}
+                    onStartGame={startNewGame}
+                    onCancel={() => setShowNewGameDialog(false)}
                 />
             </div>
         </DndProvider>

@@ -6,9 +6,10 @@ import Square from './Square'
 interface BoardProps {
     game: Chess
     onMove: (move: { from: string; to: string }) => void
+    isFlipped?: boolean
 }
 
-export default function Board({ game, onMove }: BoardProps) {
+export default function Board({ game, onMove, isFlipped = false }: BoardProps) {
     const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
     const board = game.board()
 
@@ -35,12 +36,19 @@ export default function Board({ game, onMove }: BoardProps) {
         }
     }
 
+    const rows = isFlipped ? [...board].reverse() : board
+
     return (
         <div className="grid grid-cols-8 border-4 border-stone-800 rounded-sm overflow-hidden shadow-xl">
-            {board.map((row, rowIndex) =>
-                row.map((piece, colIndex) => {
-                    const square = (String.fromCharCode(97 + colIndex) + (8 - rowIndex)) as SquareType
-                    const isBlack = (rowIndex + colIndex) % 2 === 1
+            {rows.map((row, rowIndex) => {
+                const actualRowIndex = isFlipped ? 7 - rowIndex : rowIndex
+                const displayRow = isFlipped ? [...row].reverse() : row
+
+                return displayRow.map((piece, colIndex) => {
+                    const actualColIndex = isFlipped ? 7 - colIndex : colIndex
+                    const square = (String.fromCharCode(97 + actualColIndex) + (8 - actualRowIndex)) as SquareType
+
+                    const isBlack = (actualRowIndex + actualColIndex) % 2 === 1
                     const highlight = lastMoveSquares.includes(square)
                     const isValidMove = validMoves.includes(square)
                     const isSelected = square === selectedSquare
@@ -62,7 +70,7 @@ export default function Board({ game, onMove }: BoardProps) {
                         />
                     )
                 })
-            )}
+            })}
         </div>
     )
 }
