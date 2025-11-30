@@ -27,7 +27,7 @@ export default function Game() {
     // AI State
     const [gameMode, setGameMode] = useState<'pvp' | 'ai'>('pvp')
     const [aiColor, setAiColor] = useState<'w' | 'b' | null>(null)
-    const [showNewGameDialog, setShowNewGameDialog] = useState(false)
+    const [showNewGameDialog, setShowNewGameDialog] = useState(true)
     const [isAiThinking, setIsAiThinking] = useState(false)
 
     useEffect(() => {
