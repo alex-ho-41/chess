@@ -22,7 +22,7 @@ export default function Square({ position, piece, isBlack, onMove, highlight, is
             isOver: !!monitor.isOver(),
             canDrop: !!monitor.canDrop(),
         }),
-    }))
+    }), [onMove, position])
 
     const bgColor = isBlack ? 'bg-chess-board-dark' : 'bg-chess-board-light'
     const highlightColor = highlight ? 'ring-inset ring-4 ring-yellow-400/50' : ''

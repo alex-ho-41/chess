@@ -118,12 +118,14 @@ export default function Game() {
         }
 
         try {
-            const result = game.move(move)
+            const gameCopy = new Chess(game.fen())
+            const result = gameCopy.move(move)
             if (result) {
-                setFen(game.fen())
+                setGame(gameCopy)
+                setFen(gameCopy.fen())
                 if (!isTimerActive) setIsTimerActive(true)
 
-                if (game.isCheck()) {
+                if (gameCopy.isCheck()) {
                     playCheckSound()
                 } else if (result.captured) {
                     playCaptureSound()
@@ -154,12 +156,14 @@ export default function Game() {
                 console.log("Best move found:", bestMove)
 
                 if (bestMove) {
-                    const result = game.move(bestMove)
+                    const gameCopyForMove = new Chess(game.fen())
+                    const result = gameCopyForMove.move(bestMove)
                     if (result) {
-                        setFen(game.fen())
+                        setGame(gameCopyForMove)
+                        setFen(gameCopyForMove.fen())
                         if (!isTimerActive) setIsTimerActive(true)
 
-                        if (game.isCheck()) {
+                        if (gameCopyForMove.isCheck()) {
                             playCheckSound()
                         } else if (result.captured) {
                             playCaptureSound()

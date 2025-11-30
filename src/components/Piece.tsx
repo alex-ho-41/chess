@@ -15,7 +15,7 @@ export default function Piece({ piece, position }: PieceProps) {
         collect: (monitor) => ({
             isDragging: !!monitor.isDragging(),
         }),
-    }))
+    }), [piece, position])
 
     useEffect(() => {
         preview(getEmptyImage(), { captureDraggingState: true })
