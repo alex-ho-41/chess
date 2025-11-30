@@ -33,6 +33,7 @@ export default function Square({ position, piece, isBlack, onMove, highlight, is
         <div
             ref={drop as any}
             onClick={onClick}
+            data-square={position}
             className={`w-16 h-16 flex items-center justify-center relative ${selectedColor || bgColor} ${highlightColor} ${dropColor} cursor-pointer`}
         >
             {piece && <Piece piece={piece} position={position} />}

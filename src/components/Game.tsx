@@ -7,6 +7,7 @@ import MoveHistory from './MoveHistory'
 import PromotionDialog from './PromotionDialog'
 import CustomDragLayer from './CustomDragLayer'
 import GameOptionsDialog from './GameOptionsDialog'
+import GameOverDialog from './GameOverDialog'
 import Timer from './Timer'
 import { playMoveSound, playCaptureSound, playCheckSound } from '../utils/sound'
 import { getBestMove } from '../utils/ai'
@@ -18,6 +19,7 @@ export default function Game() {
     const [fen, setFen] = useState(game.fen())
     const [status, setStatus] = useState('')
     const [promotionMove, setPromotionMove] = useState<{ from: string; to: string } | null>(null)
+    const [gameOverResult, setGameOverResult] = useState<string | null>(null)
 
     // Timer State
     const [whiteTime, setWhiteTime] = useState(INITIAL_TIME)
@@ -70,11 +72,27 @@ export default function Game() {
     useEffect(() => {
         updateStatus()
 
+        if (game.isGameOver() || whiteTime === 0 || blackTime === 0) {
+            if (!gameOverResult) {
+                let result = ''
+                if (whiteTime === 0) {
+                    result = 'Time out! Black wins.'
+                } else if (blackTime === 0) {
+                    result = 'Time out! White wins.'
+                } else if (game.isCheckmate()) {
+                    result = `Checkmate! ${game.turn() === 'w' ? 'Black' : 'White'} wins.`
+                } else if (game.isDraw()) {
+                    result = 'Draw!'
+                }
+                setGameOverResult(result)
+            }
+        }
+
         // AI Move Logic
         if (gameMode === 'ai' && !game.isGameOver() && game.turn() === aiColor && !isAiThinking) {
             makeAiMove()
         }
-    }, [game, fen, gameMode, aiColor, isAiThinking])
+    }, [game, fen, gameMode, aiColor, isAiThinking, whiteTime, blackTime])
 
     function updateStatus() {
         let status = ''
@@ -118,14 +136,12 @@ export default function Game() {
         }
 
         try {
-            const gameCopy = new Chess(game.fen())
-            const result = gameCopy.move(move)
+            const result = game.move(move)
             if (result) {
-                setGame(gameCopy)
-                setFen(gameCopy.fen())
+                setFen(game.fen())
                 if (!isTimerActive) setIsTimerActive(true)
 
-                if (gameCopy.isCheck()) {
+                if (game.isCheck()) {
                     playCheckSound()
                 } else if (result.captured) {
                     playCaptureSound()
@@ -156,14 +172,12 @@ export default function Game() {
                 console.log("Best move found:", bestMove)
 
                 if (bestMove) {
-                    const gameCopyForMove = new Chess(game.fen())
-                    const result = gameCopyForMove.move(bestMove)
+                    const result = game.move(bestMove)
                     if (result) {
-                        setGame(gameCopyForMove)
-                        setFen(gameCopyForMove.fen())
+                        setFen(game.fen())
                         if (!isTimerActive) setIsTimerActive(true)
 
-                        if (gameCopyForMove.isCheck()) {
+                        if (game.isCheck()) {
                             playCheckSound()
                         } else if (result.captured) {
                             playCaptureSound()
@@ -192,6 +206,7 @@ export default function Game() {
         setGame(newGame)
         setFen(newGame.fen())
         setPromotionMove(null)
+        setGameOverResult(null)
         setGameMode(mode)
         setAiColor(aiCol || null)
         setWhiteTime(INITIAL_TIME)
@@ -199,6 +214,11 @@ export default function Game() {
         setIsTimerActive(false)
         setShowNewGameDialog(false)
         setIsAiThinking(false)
+    }
+
+    function handleGameOverNewGame() {
+        setGameOverResult(null)
+        setShowNewGameDialog(true)
     }
 
     // Determine if board should be flipped
@@ -239,6 +259,12 @@ export default function Game() {
                     isOpen={showNewGameDialog}
                     onStartGame={startNewGame}
                     onCancel={() => setShowNewGameDialog(false)}
+                />
+
+                <GameOverDialog
+                    isOpen={!!gameOverResult}
+                    result={gameOverResult || ''}
+                    onNewGame={handleGameOverNewGame}
                 />
             </div>
         </DndProvider>
